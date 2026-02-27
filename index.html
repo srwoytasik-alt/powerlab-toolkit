@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PowerLab Toolkit</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f4f6f9;
+  color: #222;
+}
+
+header {
+  background: linear-gradient(135deg, #1a3c6d, #274c8f);
+  color: white;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  position: relative;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2.4rem;
+}
+
+header p {
+  margin-top: 0.6rem;
+  opacity: 0.95;
+}
+
+.version-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: white;
+  color: #1a3c6d;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 20px;
+}
+
+.github-btn {
+  display: inline-block;
+  margin-top: 1.2rem;
+  padding: 0.7rem 1.4rem;
+  background: white;
+  color: #1a3c6d;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.github-btn:hover {
+  background: #e6ebf5;
+}
+
+.container {
+  max-width: 1150px;
+  margin: 3rem auto;
+  padding: 0 1rem;
+}
+
+.section-title {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  font-size: 1.8rem;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 2rem;
+}
+
+.tool-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tool-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.08);
+}
+
+.tool-card h3 {
+  margin-top: 0;
+  color: #1a3c6d;
+}
+
+.tool-card p {
+  color: #555;
+  margin: 1rem 0;
+  line-height: 1.5;
+}
+
+.tool-card a {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.65rem 1.2rem;
+  background: #1a3c6d;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.tool-card a:hover {
+  background: #2c5aa3;
+}
+
+footer {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  font-size: 0.9rem;
+  color: #555;
+  border-top: 1px solid #ddd;
+  margin-top: 4rem;
+  background: #ffffff;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="version-badge">v1.0.0</div>
+  <h1>PowerLab Toolkit</h1>
+  <p>Practical engineering calculators for real-world electrical design</p>
+  <a class="github-btn" href="https://github.com/srwoytasik-alt/powerlab-toolkit" target="_blank">
+    View on GitHub
+  </a>
+</header>
+
+<main class="container">
+
+<h2 class="section-title">Available Tools</h2>
+
+<div class="tool-grid">
+
+  <div class="tool-card">
+    <h3>Wire Gauge Selector</h3>
+    <p>Determine minimum conductor size based on ampacity and voltage drop.</p>
+    <a href="tools/wire-gauge.html">Launch Tool</a>
+  </div>
+
+  <div class="tool-card">
+    <h3>PCB Trace Width Calculator</h3>
+    <p>IPC-2221 trace sizing with margin and reverse thermal mode.</p>
+    <a href="tools/pcb-trace.html">Launch Tool</a>
+  </div>
+
+  <div class="tool-card">
+    <h3>Resistor Calculator</h3>
+    <p>LED and BJT base resistor sizing with E24 rounding and wattage recommendation.</p>
+    <a href="tools/resistor.html">Launch Tool</a>
+  </div>
+
+  <div class="tool-card">
+    <h3>DC Bus Capacitor Estimator</h3>
+    <p>Estimate required DC-link bulk capacitance from ripple and load current.</p>
+    <a href="tools/dc_bus_capacitor_estimator.html">Launch Tool</a>
+  </div>
+
+  <div class="tool-card">
+    <h3>MOSFET Gate Resistor Estimator</h3>
+    <p>Calculate gate resistor from gate charge, drive voltage, and rise time.</p>
+    <a href="tools/mosfet_gate.html">Launch Tool</a>
+  </div>
+
+  <div class="tool-card">
+    <h3>MOSFET Switching Loss Estimator</h3>
+    <p>Estimate switching energy, switching loss, and gate drive power.</p>
+    <a href="tools/mosfet_switching.html">Launch Tool</a>
+  </div>
+
+</div>
+
+</main>
+
+<footer>
+  Built by <strong>Steven Woytasik</strong> • Electrical Hardware Engineer<br>
+  © 2026 PowerLab Toolkit • MIT Licensed
+</footer>
+
+</body>
+</html>

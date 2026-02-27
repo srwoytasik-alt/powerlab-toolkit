@@ -1,0 +1,56 @@
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  background: #f4f6f9;
+  color: #222;
+}
+
+.header {
+  background: #1a3c6d;
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header nav a {
+  color: white;
+  margin-left: 1rem;
+  text-decoration: none;
+}
+
+.header nav a.active {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  gap: 1rem;
+}
+
+.primary-btn {
+  background: #1a3c6d;
+  color: white;
+  border: none;
+  padding: 0.9rem;
+  margin-top: 1.5rem;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.result-box {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}

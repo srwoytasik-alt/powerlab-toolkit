@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DC Bus Capacitor Estimator (Single-Phase)</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        color: #f1f5f9;
+        padding: 30px;
+    }
+    h1 {
+        color: #38bdf8;
+    }
+    .container {
+        max-width: 650px;
+        margin: auto;
+        background: #1e293b;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+    input {
+        width: 100%;
+        padding: 8px;
+        margin: 6px 0 15px 0;
+        border-radius: 6px;
+        border: none;
+    }
+    button {
+        background: #38bdf8;
+        color: black;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    button:hover {
+        background: #0ea5e9;
+    }
+    .results {
+        margin-top: 20px;
+        padding: 15px;
+        background: #0f172a;
+        border-radius: 8px;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>DC Bus Capacitor Estimator (Single-Phase)</h1>
+
+<label>Output Power (W)</label>
+<input type="number" id="power" step="any">
+
+<label>DC Bus Voltage (V)</label>
+<input type="number" id="vdc" step="any">
+
+<label>Line Frequency (Hz)</label>
+<input type="number" id="line_freq" step="any" value="60">
+
+<label>Single Capacitor Capacitance (µF)</label>
+<input type="number" id="cap_uF" step="any">
+
+<label>Single Capacitor ESR (Ohms)</label>
+<input type="number" id="esr" step="any">
+
+<label>Number of Capacitors in Parallel</label>
+<input type="number" id="num_caps">
+
+<label>Thermal Resistance θJA per Cap (°C/W)</label>
+<input type="number" id="theta" step="any">
+
+<label>Ambient Temperature (°C)</label>
+<input type="number" id="ambient" step="any">
+
+<label>Rated Max Temperature (°C)</label>
+<input type="number" id="rated" step="any">
+
+<button onclick="calculate()">Calculate</button>
+
+<div class="results" id="results"></div>
+
+</div>
+
+<script>
+function calculate() {
+
+    let P = parseFloat(document.getElementById("power").value);
+    let Vdc = parseFloat(document.getElementById("vdc").value);
+    let f_line = parseFloat(document.getElementById("line_freq").value);
+    let cap_uF = parseFloat(document.getElementById("cap_uF").value);
+    let esr = parseFloat(document.getElementById("esr").value);
+    let num_caps = parseInt(document.getElementById("num_caps").value);
+    let theta = parseFloat(document.getElementById("theta").value);
+    let ambient = parseFloat(document.getElementById("ambient").value);
+    let rated = parseFloat(document.getElementById("rated").value);
+
+    if (!P || !Vdc || !f_line || !cap_uF || !esr || !num_caps || !theta || !ambient || !rated) {
+        document.getElementById("results").innerHTML = "Please fill in all fields.";
+        return;
+    }
+
+    let C_single = cap_uF * 1e-6;
+    let C_total = C_single * num_caps;
+
+    let omega = 2 * Math.PI * f_line;
+
+    // Single-phase ripple voltage approximation
+    let deltaV = P / (2 * omega * C_total * Vdc);
+
+    // Approximate ripple current (AC component)
+    let I_ripple = P / Vdc;
+
+    let I_per_cap = I_ripple / num_caps;
+
+    let P_per_cap = Math.pow(I_per_cap, 2) * esr;
+    let deltaT = P_per_cap * theta;
+    let cap_temp = ambient + deltaT;
+
+    let temp_margin = rated - cap_temp;
+    let life_multiplier = Math.pow(2, temp_margin / 10);
+
+    let esr_total = esr / num_caps;
+
+    document.getElementById("results").innerHTML = `
+        <strong>Total Capacitance:</strong> ${(C_total*1e6).toFixed(1)} µF<br>
+        <strong>Total ESR:</strong> ${esr_total.toFixed(5)} Ω<br><br>
+
+        <strong>Estimated DC Bus Ripple (pk approx):</strong> ${deltaV.toFixed(2)} V<br>
+        <strong>Approx Ripple Current (RMS approx):</strong> ${I_ripple.toFixed(2)} A<br>
+        <strong>Ripple Current per Cap:</strong> ${I_per_cap.toFixed(2)} A<br><br>
+
+        <strong>Heating per Cap:</strong> ${P_per_cap.toFixed(3)} W<br>
+        <strong>Estimated Core Temp per Cap:</strong> ${cap_temp.toFixed(2)} °C<br>
+        <strong>Life Multiplier vs Rated:</strong> ${life_multiplier.toFixed(2)}x
+    `;
+}
+</script>
+
+</body>
+</html>

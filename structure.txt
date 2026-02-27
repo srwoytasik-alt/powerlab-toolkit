@@ -1,0 +1,26 @@
+powerlab-toolkit/
+│
+├── app.py
+├── modules/
+│   ├── mosfet.py
+│   ├── thermal.py
+│   ├── monte_carlo.py
+│   ├── emi.py
+│   ├── dfmea.py
+│
+├── utils/
+│   ├── plots.py
+│   ├── units.py
+│
+├── README.md
+└── requirements.txt
+
+
+powerlab-toolkit/
+│
+├── app.py              ← main launcher
+├── pages/
+│   ├── mosfet.py
+│   ├── monte_carlo.py
+│   ├── emi.py
+│   └── dfmea.py
