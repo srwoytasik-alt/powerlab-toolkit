@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PowerLab Toolkit | MOSFET Loss & Thermal Estimator</title>
+
+<style>
+body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #f4f6f9; color: #222; }
+header { background: #1a3c6d; color: white; padding: 1.5rem 2rem; }
+header h1 { margin: 0; }
+nav a { color: white; text-decoration: none; margin-right: 1rem; }
+.container { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 1rem; }
+label { display: block; font-weight: 600; margin-bottom: 0.3rem; }
+input { width: 100%; padding: 0.6rem; border-radius: 4px; border: 1px solid #ccc; }
+button { margin-top: 1.5rem; padding: 0.9rem; width: 100%; font-size: 1rem; background: #1a3c6d; color: white; border: none; border-radius: 6px; cursor: pointer; }
+button:hover { background: #2c5aa3; }
+.result-box { margin-top: 2rem; padding: 1.5rem; background: white; border-radius: 8px; border: 1px solid #ddd; line-height: 1.6; }
+.highlight { font-weight: 600; color: #1a3c6d; }
+.warning { color: #c82333; font-weight: 600; }
+.note { margin-top: 1rem; font-size: 0.85rem; color: #555; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>PowerLab Toolkit</h1>
+  <nav>
+    <a href="../index.html">Home</a>
+    <a href="mosfet_switching.html">MOSFET Loss</a>
+  </nav>
+</header>
+
+<main class="container">
+
+<h2>MOSFET Loss & Thermal Estimator</h2>
+
+<form id="swForm">
+
+<div class="form-grid">
+
+<div><label>Drain-Source Voltage Vds (V)</label>
+<input type="number" id="Vds" value="400"></div>
+
+<div><label>Drain Current Id (A)</label>
+<input type="number" id="Id" value="10"></div>
+
+<div><label>Duty Cycle (0–1)</label>
+<input type="number" id="duty" value="0.5" step="0.01"></div>
+
+<div><label>Rds(on) (Ω)</label>
+<input type="number" id="Rds" value="0.05" step="0.001"></div>
+
+<div><label>Turn-On Time ton (ns)</label>
+<input type="number" id="ton" value="30"></div>
+
+<div><label>Turn-Off Time toff (ns)</label>
+<input type="number" id="toff" value="40"></div>
+
+<div><label>Switching Frequency (kHz)</label>
+<input type="number" id="fsw" value="50"></div>
+
+<div><label>Body Diode Reverse Recovery Charge Qrr (nC)</label>
+<input type="number" id="Qrr" value="80"></div>
+
+<div><label>Gate Charge Qg (nC)</label>
+<input type="number" id="Qg" value="60"></div>
+
+<div><label>Gate Drive Voltage (V)</label>
+<input type="number" id="Vdrive" value="12"></div>
+
+<div><label>Thermal Resistance RθJA (°C/W)</label>
+<input type="number" id="Rth" value="40"></div>
+
+<div><label>Ambient Temperature (°C)</label>
+<input type="number" id="Tamb" value="25"></div>
+
+</div>
+
+<button type="submit">Calculate</button>
+
+</form>
+
+<div id="result" class="result-box"></div>
+
+</main>
+
+<script>
+
+document.getElementById("swForm").addEventListener("submit", function(e){
+  e.preventDefault();
+
+  const Vds = parseFloat(document.getElementById("Vds").value);
+  const Id = parseFloat(document.getElementById("Id").value);
+  const duty = parseFloat(document.getElementById("duty").value);
+  const Rds = parseFloat(document.getElementById("Rds").value);
+  const ton = parseFloat(document.getElementById("ton").value) * 1e-9;
+  const toff = parseFloat(document.getElementById("toff").value) * 1e-9;
+  const fsw = parseFloat(document.getElementById("fsw").value) * 1000;
+  const Qrr = parseFloat(document.getElementById("Qrr").value) * 1e-9;
+  const Qg = parseFloat(document.getElementById("Qg").value) * 1e-9;
+  const Vdrive = parseFloat(document.getElementById("Vdrive").value);
+  const Rth = parseFloat(document.getElementById("Rth").value);
+  const Tamb = parseFloat(document.getElementById("Tamb").value);
+
+  const Pcond = Id * Id * Rds * duty;
+  const Eon = 0.5 * Vds * Id * ton;
+  const Eoff = 0.5 * Vds * Id * toff;
+  const Psw = (Eon + Eoff) * fsw;
+  const Err = Qrr * Vds;
+  const Prr = Err * fsw;
+  const Pgate = Qg * Vdrive * fsw;
+  const Ptotal = Pcond + Psw + Prr + Pgate;
+
+  const deltaT = Ptotal * Rth;
+  const Tj = Tamb + deltaT;
+
+  let warning = "";
+  if (Tj > 150) {
+    warning = "<div class='warning'>Junction temperature exceeds 150°C — redesign required.</div>";
+  }
+
+  document.getElementById("result").innerHTML =
+    `<strong>Conduction Loss:</strong> ${Pcond.toFixed(2)} W<br>
+     <strong>Turn-On Loss:</strong> ${(Eon*fsw).toFixed(2)} W<br>
+     <strong>Turn-Off Loss:</strong> ${(Eoff*fsw).toFixed(2)} W<br>
+     <strong>Reverse Recovery Loss:</strong> ${Prr.toFixed(2)} W<br>
+     <strong>Gate Drive Loss:</strong> ${Pgate.toFixed(2)} W<br><br>
+     <span class="highlight">Total Device Loss: ${Ptotal.toFixed(2)} W</span><br><br>
+     Estimated Temperature Rise: ${deltaT.toFixed(1)} °C<br>
+     <span class="highlight">Estimated Junction Temperature: ${Tj.toFixed(1)} °C</span>
+     ${warning}
+     <div class="note">
+     Includes conduction, asymmetric switching, reverse recovery, and gate loss.<br>
+     Thermal model assumes lumped RθJA.
+     </div>`;
+});
+
+</script>
+
+</body>
+</html>

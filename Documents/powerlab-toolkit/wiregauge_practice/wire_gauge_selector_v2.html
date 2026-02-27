@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wire Gauge Selector - Final Fix</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; background: #f9f9f9; color: #222; }
+    h1 { text-align: center; color: #1a3c6d; }
+    .form-group { margin: 1.2rem 0; }
+    label { display: block; margin-bottom: 0.4rem; font-weight: 600; }
+    input, select { width: 100%; padding: 0.6rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { display: block; width: 100%; padding: 0.9rem; font-size: 1.1rem; background: #1a3c6d; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 1.5rem; }
+    button:hover { background: #2c5aa3; }
+    #result { margin-top: 2rem; padding: 1.5rem; background: white; border: 1px solid #ddd; border-radius: 8px; white-space: pre-wrap; }
+    .note { font-size: 0.9rem; color: #555; margin-top: 2rem; }
+    .warning { color: #c0392b; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h1>Wire Gauge Selector - Final Fix</h1>
+  <p style="text-align:center; color:#555;">Copper/Aluminum • Single-Phase • Ambient Correction • Larger Sizes • NEC 2023 inspired</p>
+
+  <form id="wireForm">
+    <div class="form-group">
+      <label>Conductor material</label>
+      <select id="material">
+        <option value="copper" selected>Copper</option>
+        <option value="aluminum">Aluminum</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Load current (A)</label>
+      <input type="number" id="current" step="0.1" min="0" value="15" required>
+    </div>
+
+    <div class="form-group">
+      <label>Circuit voltage (V)</label>
+      <input type="number" id="voltage" step="1" min="1" value="120" required>
+    </div>
+
+    <div class="form-group">
+      <label>One-way run length (feet)</label>
+      <input type="number" id="length" step="1" min="0" value="100" required>
+    </div>
+
+    <div class="form-group">
+      <label>Insulation temp rating</label>
+      <select id="tempRating">
+        <option value="0">60°C</option>
+        <option value="1" selected>75°C</option>
+        <option value="2">90°C</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label><input type="checkbox" id="continuous"> Continuous load (>3 hours — apply 125% factor)</label>
+    </div>
+
+    <div class="form-group">
+      <label>Ambient temperature</label>
+      <input type="number" id="ambientTemp" step="1" value="30" required>
+      <select id="tempUnit">
+        <option value="C" selected>°C</option>
+        <option value="F">°F</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Max allowable voltage drop (%)</label>
+      <input type="number" id="vdMax" step="0.1" min="0.1" max="10" value="3" required>
+    </div>
+
+    <button type="submit">Calculate</button>
+  </form>
+
+  <div id="result"></div>
+
+  <div class="note">
+    <strong>Notes & Disclaimers</strong><br>
+    • Approximate NEC 2023 Table 310.15(B)(16) ampacities & Ch.9 Table 8 resistances<br>
+    • Ambient correction from Table 310.15(B)(1) based on 30°C reference<br>
+    • Voltage drop is recommended (informational note), not required<br>
+    • Always verify with latest NEC, local codes, and full derating (bundling, etc.)<br>
+    • For 3-phase, bundling derating, or saving results — let me know!
+  </div>
+
+  <script>
+    // Data tables (unchanged)
+    const ampacity = {
+      copper: {
+        14: [15,20,25], 12:[20,25,30], 10:[30,35,40], 8:[40,50,55], 6:[55,65,75],
+        4:[70,85,95], 3:[85,100,110], 2:[95,115,130], 1:[110,130,145],
+        '1/0':[125,150,170], '2/0':[145,175,195], '3/0':[165,200,225], '4/0':[195,230,260],
+        250:[215,255,290], 300:[240,285,320], 350:[260,310,350], 400:[280,335,380],
+        500:[320,380,430], 600:[350,420,475], 700:[385,460,520], 750:[400,475,535],
+        800:[410,490,555], 900:[435,520,585], 1000:[455,545,615]
+      },
+      aluminum: {
+        12:[15,20,25], 10:[25,30,35], 8:[35,40,45], 6:[40,50,55], 4:[55,65,75],
+        3:[65,75,85], 2:[75,90,100], 1:[85,100,115],
+        '1/0':[100,120,135], '2/0':[115,135,150], '3/0':[130,155,175], '4/0':[150,180,205],
+        250:[170,205,230], 300:[195,230,260], 350:[210,250,280], 400:[225,270,305],
+        500:[260,310,350], 600:[285,340,385], 700:[315,375,425], 750:[320,385,435],
+        800:[330,395,445], 900:[355,425,480], 1000:[375,445,500]
+      }
+    };
+
+    const resistance = {
+      copper: {
+        14:2.525, 12:1.588, 10:0.999, 8:0.628, 6:0.395, 4:0.248, 3:0.197, 2:0.156, 1:0.124,
+        '1/0':0.099, '2/0':0.078, '3/0':0.062, '4/0':0.049,
+        250:0.0515, 300:0.0429, 350:0.0367, 400:0.0321, 500:0.0258,
+        600:0.0214, 700:0.0184, 750:0.0172, 800:0.0161, 900:0.0143, 1000:0.0129
+      },
+      aluminum: {
+        12:2.659, 10:1.671, 8:1.052, 6:0.661, 4:0.416, 3:0.330, 2:0.262, 1:0.208,
+        '1/0':0.165, '2/0':0.131, '3/0':0.104, '4/0':0.082,
+        250:0.0847, 300:0.0707, 350:0.0605, 400:0.0529, 500:0.0424,
+        600:0.0353, 700:0.0303, 750:0.0283, 800:0.0265, 900:0.0235, 1000:0.0212
+      }
+    };
+
+    const ambientCorrection = {
+      '60': { range:[[-Infinity,10],[11,15],[16,20],[21,25],[26,30],[31,35],[36,40],[41,45],[46,50],[51,55],[56,60]], factors:[1.29,1.22,1.15,1.08,1.00,0.91,0.82,0.71,0.58,0.41,0.00] },
+      '75': { range:[[-Infinity,10],[11,15],[16,20],[21,25],[26,30],[31,35],[36,40],[41,45],[46,50],[51,55],[56,60],[61,65],[66,70]], factors:[1.20,1.15,1.11,1.05,1.00,0.94,0.88,0.82,0.75,0.67,0.58,0.47,0.33] },
+      '90': { range:[[-Infinity,10],[11,15],[16,20],[21,25],[26,30],[31,35],[36,40],[41,45],[46,50],[51,55],[56,60],[61,65],[66,70],[71,75],[76,80],[81,85]], factors:[1.15,1.12,1.08,1.04,1.00,0.96,0.91,0.87,0.82,0.76,0.71,0.65,0.58,0.50,0.41,0.29] }
+    };
+
+    function getCorrectionFactor(ambientC, tempRating) {
+      const col = tempRating === 0 ? '60' : tempRating === 1 ? '75' : '90';
+      const data = ambientCorrection[col];
+      for (let i = 0; i < data.range.length; i++) {
+        const [low, high] = data.range[i];
+        if (ambientC >= low && ambientC <= (high ?? Infinity)) return data.factors[i];
+      }
+      return 1.0;
+    }
+
+    function cToF(c) { return (c * 9/5) + 32; }
+    function fToC(f) { return (f - 32) * 5/9; }
+
+    function getGaugeList(material) {
+      const table = ampacity[material];
+      const keys = Object.keys(table);
+
+      // 1. Numeric AWG only, sorted descending (14 first = smallest conductor)
+      const numericAwg = keys
+        .filter(k => !isNaN(k) && !k.includes('/'))
+        .map(Number)
+        .sort((a, b) => b - a);  // 14,12,10,...,1
+
+      // 2. Large sizes (kcmil and 1/0 etc.), sorted ascending by size
+      const largeSizes = keys
+        .filter(k => k.includes('/') || Number(k) > 4)
+        .sort((a, b) => {
+          const getVal = (x) => {
+            if (typeof x === 'string' && x.includes('/')) return parseInt(x.split('/')[0]) + 10000;
+            return Number(x);
+          };
+          return getVal(a) - getVal(b);
+        });
+
+      const orderedList = [...numericAwg, ...largeSizes];
+
+      // Debug: uncomment to log the order in console (F12 → Console)
+      // console.log('Gauge list (should start with 14):', orderedList);
+
+      return orderedList;
+    }
+
+    function findMinGauge(requiredAmp, tempIdx, material, correctionFactor) {
+      const list = getGaugeList(material);
+      const table = ampacity[material];
+      for (let awg of list) {
+        const baseAmps = table[awg][tempIdx];
+        const corrected = baseAmps * correctionFactor;
+        if (corrected >= requiredAmp) {
+          return { awg, baseAmps, correctedAmps: corrected };
+        }
+      }
+      return null;
+    }
+
+    function calcVoltageDrop(current, length, awg, voltage, material) {
+      const r = resistance[material][awg];
+      if (r === undefined) return { vdVolts: null, vdPct: null };
+      const vdVolts = 2 * current * length * r / 1000;
+      const vdPct = voltage ? (vdVolts / voltage) * 100 : 0;
+      return { vdVolts, vdPct };
+    }
+
+    function formatGauge(awg) {
+      if (typeof awg === 'string' && awg.includes('/')) return awg + ' AWG';
+      if (typeof awg === 'number' && awg > 4) return awg + ' kcmil';
+      return awg + ' AWG';
+    }
+
+    document.getElementById('wireForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const material   = document.getElementById('material').value;
+      const current    = parseFloat(document.getElementById('current').value);
+      const voltage    = parseFloat(document.getElementById('voltage').value);
+      const length     = parseFloat(document.getElementById('length').value);
+      const tempIdx    = parseInt(document.getElementById('tempRating').value);
+      const continuous = document.getElementById('continuous').checked;
+      const vdMax      = parseFloat(document.getElementById('vdMax').value);
+      let ambientInput = parseFloat(document.getElementById('ambientTemp').value);
+      const tempUnit   = document.getElementById('tempUnit').value;
+
+      if (isNaN(current) || isNaN(voltage) || isNaN(length) || isNaN(vdMax) || isNaN(ambientInput)) {
+        alert("Please fill in all fields with valid numbers.");
+        return;
+      }
+
+      const ambientC = tempUnit === 'F' ? fToC(ambientInput) : ambientInput;
+      const correctionFactor = getCorrectionFactor(ambientC, tempIdx);
+      const requiredAmp = continuous ? current * 1.25 : current;
+      const contText = continuous ? " (includes 125% continuous factor)" : "";
+
+      const minGauge = findMinGauge(requiredAmp, tempIdx, material, correctionFactor);
+      if (!minGauge) {
+        document.getElementById('result').innerHTML = `<strong class="warning">No suitable gauge found — load too high or ambient too extreme!</strong>`;
+        return;
+      }
+
+      let currentAwg = minGauge.awg;
+      let displayAwg = formatGauge(currentAwg);
+
+      let output = `Minimum ampacity needed: ${requiredAmp.toFixed(1)} A${contText}\n`;
+      output += `Ambient temperature: ${ambientInput}°${tempUnit} → correction factor ${correctionFactor.toFixed(2)}\n`;
+      output += `Smallest gauge meeting corrected ampacity: ${displayAwg}\n  (base ${minGauge.baseAmps} A → corrected ${minGauge.correctedAmps.toFixed(1)} A)\n\n`;
+      output += `Actual load current for voltage drop: ${current.toFixed(1)} A\n`;
+
+      if (length < 5) output += "\nNote: Very short run — voltage drop is negligible.\n";
+
+      let { vdVolts, vdPct } = calcVoltageDrop(current, length, currentAwg, voltage, material);
+      if (vdVolts === null) {
+        output += "\nResistance data missing for this gauge.";
+        document.getElementById('result').innerHTML = output;
+        return;
+      }
+
+      output += `Voltage drop with ${displayAwg}: ${vdVolts.toFixed(2)} V  (${vdPct.toFixed(2)}%)\n`;
+
+      while (vdPct > vdMax) {
+        const list = getGaugeList(material);
+        const idx = list.indexOf(currentAwg);
+        if (idx >= list.length - 1 || idx === -1) {
+          output += "\n→ Even largest wire exceeds voltage drop limit.\n";
+          break;
+        }
+        currentAwg = list[idx + 1];
+        displayAwg = formatGauge(currentAwg);
+        ({ vdVolts, vdPct } = calcVoltageDrop(current, length, currentAwg, voltage, material));
+        output += `  Trying ${displayAwg} → ${vdVolts.toFixed(2)} V (${vdPct.toFixed(2)}%)\n`;
+      }
+
+      if (vdPct <= vdMax) {
+        output += `\nFinal recommendation: ${displayAwg} (meets ampacity + voltage drop ≤ ${vdMax}%)`;
+      }
+
+      document.getElementById('result').innerHTML = output;
+    });
+  </script>
+</body>
+</html>

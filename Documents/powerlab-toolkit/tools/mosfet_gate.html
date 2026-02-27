@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PowerLab Toolkit | MOSFET Gate Resistor</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f4f6f9;
+  color: #222;
+}
+
+header {
+  background: #1a3c6d;
+  color: white;
+  padding: 1.5rem 2rem;
+}
+
+header h1 { margin: 0; }
+
+nav a {
+  color: white;
+  text-decoration: none;
+  margin-right: 1rem;
+}
+
+.container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  gap: 1rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+input {
+  width: 100%;
+  padding: 0.6rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+button {
+  margin-top: 1.5rem;
+  padding: 0.9rem;
+  width: 100%;
+  font-size: 1rem;
+  background: #1a3c6d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover { background: #2c5aa3; }
+
+.result-box {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  line-height: 1.6;
+}
+
+.highlight {
+  font-weight: 600;
+  color: #1a3c6d;
+}
+
+.note {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>PowerLab Toolkit</h1>
+  <nav>
+    <a href="../index.html">Home</a>
+    <a href="mosfet_gate.html">MOSFET Gate</a>
+  </nav>
+</header>
+
+<main class="container">
+
+<h2>MOSFET Gate Resistor Estimator</h2>
+<p>Estimate gate resistor from gate charge and desired switching time.</p>
+
+<form id="mosForm">
+
+<div class="form-grid">
+
+<div>
+<label>Gate Charge Qg (nC)</label>
+<input type="number" id="Qg" value="60">
+</div>
+
+<div>
+<label>Gate Drive Voltage (V)</label>
+<input type="number" id="Vdrive" value="12">
+</div>
+
+<div>
+<label>Desired Rise Time (ns)</label>
+<input type="number" id="trise" value="50">
+</div>
+
+<div>
+<label>Driver Internal Resistance (Ω)</label>
+<input type="number" id="Rdriver" value="2">
+</div>
+
+</div>
+
+<button type="submit">Calculate</button>
+
+</form>
+
+<div id="result" class="result-box"></div>
+
+</main>
+
+<script>
+
+document.getElementById("mosForm").addEventListener("submit", function(e){
+  e.preventDefault();
+
+  const Qg_nC = parseFloat(document.getElementById("Qg").value);
+  const Vdrive = parseFloat(document.getElementById("Vdrive").value);
+  const trise_ns = parseFloat(document.getElementById("trise").value);
+  const Rdriver = parseFloat(document.getElementById("Rdriver").value);
+
+  if (Qg_nC <= 0 || trise_ns <= 0 || Vdrive <= 0) {
+    document.getElementById("result").innerHTML = "Enter valid positive values.";
+    return;
+  }
+
+  const Qg = Qg_nC * 1e-9;      // Convert to Coulombs
+  const trise = trise_ns * 1e-9; // Convert to seconds
+
+  const Ig_peak = Qg / trise;
+
+  const Rtotal = Vdrive / Ig_peak;
+
+  const Rexternal = Rtotal - Rdriver;
+
+  document.getElementById("result").innerHTML =
+    `<strong>Peak Gate Current:</strong> ${Ig_peak.toFixed(2)} A<br>
+     <strong>Total Required Gate Resistance:</strong> ${Rtotal.toFixed(2)} Ω<br>
+     <strong>Recommended External Gate Resistor:</strong>
+     <span class="highlight">${Rexternal > 0 ? Rexternal.toFixed(2) : 0} Ω</span>
+     <div class="note">
+     Rexternal = Rtotal − Driver Resistance.<br>
+     Smaller R → faster switching, more EMI.<br>
+     Larger R → slower switching, less ringing.
+     </div>`;
+
+});
+
+</script>
+
+</body>
+</html>

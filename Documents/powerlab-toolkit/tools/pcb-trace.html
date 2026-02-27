@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PowerLab Toolkit | PCB Trace Calculator</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f4f6f9;
+  color: #222;
+}
+
+header {
+  background: #1a3c6d;
+  color: white;
+  padding: 1.5rem 2rem;
+}
+
+header h1 { margin: 0; }
+
+nav a {
+  color: white;
+  text-decoration: none;
+  margin-right: 1rem;
+}
+
+.container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  gap: 1rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+input, select {
+  width: 100%;
+  padding: 0.6rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  transition: 0.2s ease;
+}
+
+input:disabled {
+  background: #e9edf3;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+button {
+  margin-top: 1.5rem;
+  padding: 0.9rem;
+  width: 100%;
+  font-size: 1rem;
+  background: #1a3c6d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover { background: #2c5aa3; }
+
+.result-box {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  line-height: 1.6;
+}
+
+.density-good { color: #1e7e34; font-weight: 600; }
+.density-warn { color: #b8860b; font-weight: 600; }
+.density-bad  { color: #c82333; font-weight: 600; }
+
+.note {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>PowerLab Toolkit</h1>
+  <nav>
+    <a href="../index.html">Home</a>
+    <a href="pcb-trace.html">PCB Trace</a>
+  </nav>
+</header>
+
+<main class="container">
+
+<h2>PCB Trace Calculator (IPC-2221)</h2>
+<p>Forward and reverse trace thermal analysis.</p>
+
+<form id="traceForm">
+
+<div class="form-grid">
+
+<div>
+<label>Mode</label>
+<select id="mode">
+  <option value="forward">Calculate Required Width</option>
+  <option value="reverse">Calculate Temperature Rise</option>
+</select>
+</div>
+
+<div>
+<label>Current (A)</label>
+<input type="number" id="current" value="5" step="0.1">
+</div>
+
+<div>
+<label>Temperature Rise (°C)</label>
+<input type="number" id="tempRise" value="20">
+</div>
+
+<div>
+<label>Trace Width (mil)</label>
+<input type="number" id="traceWidth" value="75">
+</div>
+
+<div>
+<label>Layer Type</label>
+<select id="layerType">
+  <option value="external">External</option>
+  <option value="internal">Internal</option>
+</select>
+</div>
+
+<div>
+<label>Copper Weight (oz)</label>
+<select id="copperWeight">
+  <option value="1">1 oz</option>
+  <option value="2">2 oz</option>
+</select>
+</div>
+
+<div>
+<label>Design Margin (%) (forward only)</label>
+<input type="number" id="margin" value="20">
+</div>
+
+<div>
+<label>Rounding Increment (mil)</label>
+<select id="rounding">
+  <option value="5">5 mil</option>
+  <option value="10">10 mil</option>
+</select>
+</div>
+
+</div>
+
+<button type="submit">Calculate</button>
+
+</form>
+
+<div id="result" class="result-box"></div>
+
+</main>
+
+<script>
+
+const modeSelect = document.getElementById("mode");
+const tempRiseInput = document.getElementById("tempRise");
+const traceWidthInput = document.getElementById("traceWidth");
+const resultBox = document.getElementById("result");
+
+function updateModeUI() {
+  const mode = modeSelect.value;
+
+  if (mode === "forward") {
+    tempRiseInput.disabled = false;
+    traceWidthInput.disabled = true;
+  } else {
+    tempRiseInput.disabled = true;
+    traceWidthInput.disabled = false;
+  }
+
+  resultBox.innerHTML = ""; // Clear results on mode switch
+}
+
+modeSelect.addEventListener("change", updateModeUI);
+updateModeUI();
+
+document.getElementById("traceForm").addEventListener("submit", function(e){
+  e.preventDefault();
+
+  const mode = modeSelect.value;
+  const I = parseFloat(document.getElementById("current").value);
+  const dT = parseFloat(tempRiseInput.value);
+  const widthInput = parseFloat(traceWidthInput.value);
+  const layer = document.getElementById("layerType").value;
+  const copperOz = parseFloat(document.getElementById("copperWeight").value);
+  const marginPct = parseFloat(document.getElementById("margin").value);
+  const rounding = parseFloat(document.getElementById("rounding").value);
+
+  const k = layer === "external" ? 0.048 : 0.024;
+  const thicknessMil = copperOz * 1.378;
+
+  function densityClass(d) {
+    if (d < 60) return "density-good";
+    if (d < 90) return "density-warn";
+    return "density-bad";
+  }
+
+  // FORWARD MODE
+  if (mode === "forward") {
+
+    const requiredAreaMil2 =
+      Math.pow(I / (k * Math.pow(dT, 0.44)), 1 / 0.725);
+
+    let widthMil = requiredAreaMil2 / thicknessMil;
+
+    widthMil *= (1 + marginPct / 100);
+    widthMil = Math.ceil(widthMil / rounding) * rounding;
+
+    const actualAreaMil2 = widthMil * thicknessMil;
+    const actualAreaMM2 = actualAreaMil2 * 0.00064516;
+    const widthMM = widthMil * 0.0254;
+    const currentDensity = I / actualAreaMM2;
+
+    resultBox.innerHTML =
+      `<strong>Recommended Trace Width:</strong><br>
+       ${widthMil.toFixed(0)} mils (${widthMM.toFixed(2)} mm)<br><br>
+       Cross-Sectional Area: ${actualAreaMil2.toFixed(1)} mil² (${actualAreaMM2.toFixed(3)} mm²)<br>
+       Current Density: <span class="${densityClass(currentDensity)}">
+       ${currentDensity.toFixed(2)} A/mm²</span>
+       <div class="note">IPC-2221 is conservative. Consider IPC-2152 for modern thermal modeling.</div>`;
+
+  }
+
+  // REVERSE MODE
+  else {
+
+    const areaMil2 = widthInput * thicknessMil;
+
+    const tempRise =
+      Math.pow(I / (k * Math.pow(areaMil2, 0.725)), 1 / 0.44);
+
+    const areaMM2 = areaMil2 * 0.00064516;
+    const currentDensity = I / areaMM2;
+
+    resultBox.innerHTML =
+      `<strong>Estimated Temperature Rise:</strong><br>
+       ${tempRise.toFixed(1)} °C<br><br>
+       Cross-Sectional Area: ${areaMil2.toFixed(1)} mil² (${areaMM2.toFixed(3)} mm²)<br>
+       Current Density: <span class="${densityClass(currentDensity)}">
+       ${currentDensity.toFixed(2)} A/mm²</span>
+       <div class="note">IPC-2221 is conservative. Consider IPC-2152 for modern thermal modeling.</div>`;
+
+  }
+
+});
+
+</script>
+
+</body>
+</html>

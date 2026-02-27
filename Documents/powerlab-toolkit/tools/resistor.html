@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PowerLab Toolkit | Resistor Calculator</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f4f6f9;
+  color: #222;
+}
+
+header {
+  background: #1a3c6d;
+  color: white;
+  padding: 1.5rem 2rem;
+}
+
+header h1 { margin: 0; }
+
+nav a {
+  color: white;
+  text-decoration: none;
+  margin-right: 1rem;
+}
+
+.container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  gap: 1rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+input, select {
+  width: 100%;
+  padding: 0.6rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+button {
+  margin-top: 1.5rem;
+  padding: 0.9rem;
+  width: 100%;
+  font-size: 1rem;
+  background: #1a3c6d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover { background: #2c5aa3; }
+
+.result-box {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  line-height: 1.6;
+}
+
+.highlight {
+  font-weight: 600;
+  color: #1a3c6d;
+}
+
+.note {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>PowerLab Toolkit</h1>
+  <nav>
+    <a href="../index.html">Home</a>
+    <a href="resistor.html">Resistor</a>
+  </nav>
+</header>
+
+<main class="container">
+
+<h2>Resistor Calculator</h2>
+<p>LED series and BJT base resistor sizing with standard value rounding.</p>
+
+<form id="resForm">
+
+<div class="form-grid">
+
+<div>
+<label>Mode</label>
+<select id="mode">
+  <option value="led">LED Series Resistor</option>
+  <option value="bjt">BJT Base Resistor</option>
+</select>
+</div>
+
+<div>
+<label>Supply Voltage (V)</label>
+<input type="number" id="Vs" value="12" step="0.1">
+</div>
+
+<div>
+<label>LED Forward Voltage / V<sub>BE</sub> (V)</label>
+<input type="number" id="Vf" value="2" step="0.1">
+</div>
+
+<div>
+<label>Desired Current / Collector Current (mA)</label>
+<input type="number" id="current" value="20">
+</div>
+
+<div>
+<label>Forced Beta (BJT only)</label>
+<input type="number" id="beta" value="10">
+</div>
+
+</div>
+
+<button type="submit">Calculate</button>
+
+</form>
+
+<div id="result" class="result-box"></div>
+
+</main>
+
+<script>
+
+// Proper E24 normalized series
+const E24 = [
+1.0,1.1,1.2,1.3,1.5,1.6,1.8,2.0,
+2.2,2.4,2.7,3.0,3.3,3.6,3.9,4.3,
+4.7,5.1,5.6,6.2,6.8,7.5,8.2,9.1
+];
+
+function nearestE24(value) {
+  if (value <= 0) return 0;
+
+  const decade = Math.pow(10, Math.floor(Math.log10(value)));
+  const normalized = value / decade;
+
+  let closest = E24[0];
+  let minDiff = Math.abs(normalized - closest);
+
+  for (let r of E24) {
+    const diff = Math.abs(normalized - r);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = r;
+    }
+  }
+
+  return closest * decade;
+}
+
+// Standard resistor wattage ratings
+const wattageRatings = [0.125, 0.25, 0.5, 1, 2, 3, 5];
+
+function recommendWattage(power) {
+  const required = power * 2; // 2× safety margin
+
+  for (let w of wattageRatings) {
+    if (required <= w) {
+      return w;
+    }
+  }
+
+  return wattageRatings[wattageRatings.length - 1];
+}
+
+document.getElementById("resForm").addEventListener("submit", function(e){
+  e.preventDefault();
+
+  const mode = document.getElementById("mode").value;
+  const Vs = parseFloat(document.getElementById("Vs").value);
+  const Vf = parseFloat(document.getElementById("Vf").value);
+  const currentmA = parseFloat(document.getElementById("current").value);
+  const beta = parseFloat(document.getElementById("beta").value);
+
+  if (Vs <= 0 || currentmA <= 0) {
+    document.getElementById("result").innerHTML = "Enter valid voltage and current values.";
+    return;
+  }
+
+  let R, P;
+
+  if (mode === "led") {
+
+    const I = currentmA / 1000;
+
+    if (Vs <= Vf) {
+      document.getElementById("result").innerHTML = "Supply voltage must exceed forward voltage.";
+      return;
+    }
+
+    R = (Vs - Vf) / I;
+    P = I * I * R;
+
+  } else {
+
+    const Ic = currentmA / 1000;
+
+    if (beta <= 0) {
+      document.getElementById("result").innerHTML = "Enter valid forced beta.";
+      return;
+    }
+
+    const Ib = Ic / beta;
+
+    R = (Vs - Vf) / Ib;
+    P = Ib * Ib * R;
+  }
+
+  const Rstd = nearestE24(R);
+  const recommendedW = recommendWattage(P);
+
+  document.getElementById("result").innerHTML =
+    `<strong>Calculated Resistance:</strong> ${R.toFixed(0)} Ω<br>
+     <strong>Nearest E24 Value:</strong> ${Rstd.toFixed(0)} Ω<br><br>
+     Power Dissipation: ${P.toFixed(3)} W<br>
+     <span class="highlight">Recommended Minimum Rating: ${recommendedW} W</span>
+     <div class="note">Includes 2× safety margin on calculated dissipation.</div>`;
+
+});
+</script>
+
+</body>
+</html>

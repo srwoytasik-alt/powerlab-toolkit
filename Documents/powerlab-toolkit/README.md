@@ -1,0 +1,1 @@
+Developed a modular Python-based engineering toolkit focused on power electronics, reliability analysis, and EMI estimation. Designed to replicate real-world design review calculations and tolerance analysis used in production environments.

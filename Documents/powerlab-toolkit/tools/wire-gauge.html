@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PowerLab Toolkit | Wire Gauge Selector</title>
+
+<style>
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  background: #f4f6f9;
+  color: #222;
+}
+
+header {
+  background: #1a3c6d;
+  color: white;
+  padding: 1rem 2rem;
+}
+
+header h1 {
+  margin: 0;
+}
+
+nav {
+  margin-top: 0.5rem;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  margin-right: 1rem;
+}
+
+nav a.active {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+h2 {
+  margin-bottom: 0.3rem;
+}
+
+.subtitle {
+  color: #555;
+  margin-bottom: 1.5rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+input, select {
+  width: 100%;
+  padding: 0.6rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+button {
+  margin-top: 1.5rem;
+  padding: 0.9rem;
+  width: 100%;
+  font-size: 1rem;
+  background: #1a3c6d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #2c5aa3;
+}
+
+.result-box {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  line-height: 1.6;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>PowerLab Toolkit</h1>
+  <nav>
+    <a href="../index.html">Home</a>
+    <a href="wire-gauge.html" class="active">Wire Gauge</a>
+  </nav>
+</header>
+
+<main class="container">
+
+<h2>Wire Gauge Selector</h2>
+<p class="subtitle">Copper / Aluminum • Single-Phase • NEC 2023 Inspired</p>
+
+<form id="wireForm">
+
+<div class="form-grid">
+
+<div>
+<label>Material</label>
+<select id="material">
+<option value="copper">Copper</option>
+<option value="aluminum">Aluminum</option>
+</select>
+</div>
+
+<div>
+<label>Load Current (A)</label>
+<input type="number" id="current" value="15" step="0.1" required>
+</div>
+
+<div>
+<label>Voltage (V)</label>
+<input type="number" id="voltage" value="120" required>
+</div>
+
+<div>
+<label>One-Way Length (ft)</label>
+<input type="number" id="length" value="100" required>
+</div>
+
+<div>
+<label>Temperature Rating</label>
+<select id="tempRating">
+<option value="0">60°C</option>
+<option value="1" selected>75°C</option>
+<option value="2">90°C</option>
+</select>
+</div>
+
+<div>
+<label>
+<input type="checkbox" id="continuous">
+Continuous Load (×1.25)
+</label>
+</div>
+
+<div>
+<label>Max Voltage Drop (%)</label>
+<input type="number" id="vdMax" value="3" step="0.1" required>
+</div>
+
+</div>
+
+<button type="submit">Calculate</button>
+
+</form>
+
+<div id="result" class="result-box"></div>
+
+</main>
+
+<script>
+
+// ================= DATA =================
+
+const ampacity = {
+  copper: {
+    14:[15,20,25],12:[20,25,30],10:[30,35,40],8:[40,50,55],
+    6:[55,65,75],4:[70,85,95],3:[85,100,110],2:[95,115,130],
+    1:[110,130,145],'1/0':[125,150,170],'2/0':[145,175,195],
+    '3/0':[165,200,225],'4/0':[195,230,260],
+    250:[215,255,290],300:[240,285,320],350:[260,310,350],
+    400:[280,335,380],500:[320,380,430],
+    600:[350,420,475],700:[385,460,520],
+    750:[400,475,535],800:[410,490,555],
+    900:[435,520,585],1000:[455,545,615]
+  },
+  aluminum: {
+    12:[15,20,25],10:[25,30,35],8:[35,40,45],
+    6:[40,50,55],4:[55,65,75],3:[65,75,85],
+    2:[75,90,100],1:[85,100,115],
+    '1/0':[100,120,135],'2/0':[115,135,150],
+    '3/0':[130,155,175],'4/0':[150,180,205],
+    250:[170,205,230],300:[195,230,260],
+    350:[210,250,280],400:[225,270,305],
+    500:[260,310,350],600:[285,340,385],
+    700:[315,375,425],750:[320,385,435],
+    800:[330,395,445],900:[355,425,480],
+    1000:[375,445,500]
+  }
+};
+
+const resistance = {
+  copper: {
+    14:2.525,12:1.588,10:0.999,8:0.628,6:0.395,4:0.248,
+    3:0.197,2:0.156,1:0.124,'1/0':0.099,'2/0':0.078,
+    '3/0':0.062,'4/0':0.049,
+    250:0.0515,300:0.0429,350:0.0367,
+    400:0.0321,500:0.0258,
+    600:0.0214,700:0.0184,750:0.0172,
+    800:0.0161,900:0.0143,1000:0.0129
+  },
+  aluminum: {
+    12:2.659,10:1.671,8:1.052,6:0.661,
+    4:0.416,3:0.330,2:0.262,1:0.208,
+    '1/0':0.165,'2/0':0.131,'3/0':0.104,'4/0':0.082,
+    250:0.0847,300:0.0707,350:0.0605,
+    400:0.0529,500:0.0424,
+    600:0.0353,700:0.0303,750:0.0283,
+    800:0.0265,900:0.0235,1000:0.0212
+  }
+};
+
+const gaugeOrder = [
+  14,12,10,8,6,4,3,2,1,
+  '1/0','2/0','3/0','4/0',
+  250,300,350,400,500,600,700,750,800,900,1000
+];
+
+// ================= LOGIC =================
+
+function getGaugeList(material){
+  return gaugeOrder.filter(g => ampacity[material][g] !== undefined);
+}
+
+function findMinGauge(required,tempIdx,material){
+  const list = getGaugeList(material);
+  for(let g of list){
+    if(ampacity[material][g][tempIdx] >= required){
+      return g;
+    }
+  }
+  return null;
+}
+
+function calcVD(current,length,g,voltage,material){
+  const r = resistance[material][g];
+  const vd = 2 * current * length * r / 1000;
+  return { vd, pct:(vd/voltage)*100 };
+}
+
+function formatGauge(g){
+  if(typeof g === "string") return g + " AWG";
+  if(Number(g) >= 250) return g + " kcmil";
+  return g + " AWG";
+}
+
+// ================= EVENT =================
+
+document.getElementById("wireForm").addEventListener("submit", function(e){
+  e.preventDefault();
+
+  const material = document.getElementById("material").value;
+  const current = parseFloat(document.getElementById("current").value);
+  const voltage = parseFloat(document.getElementById("voltage").value);
+  const length = parseFloat(document.getElementById("length").value);
+  const tempIdx = parseInt(document.getElementById("tempRating").value);
+  const continuous = document.getElementById("continuous").checked;
+  const vdMax = parseFloat(document.getElementById("vdMax").value);
+
+  const required = continuous ? current * 1.25 : current;
+
+  let g = findMinGauge(required,tempIdx,material);
+  if(!g){
+    document.getElementById("result").innerHTML="No suitable conductor found.";
+    return;
+  }
+
+  let {vd,pct} = calcVD(current,length,g,voltage,material);
+  const list = getGaugeList(material);
+
+  while(pct > vdMax){
+    const idx = list.indexOf(g);
+    if(idx === -1 || idx >= list.length-1) break;
+    g = list[idx+1];
+    ({vd,pct} = calcVD(current,length,g,voltage,material));
+  }
+
+  document.getElementById("result").innerHTML =
+    `<strong>Recommended:</strong> ${formatGauge(g)}<br>
+     Voltage Drop: ${vd.toFixed(2)} V (${pct.toFixed(2)}%)`;
+});
+
+</script>
+
+</body>
+</html>

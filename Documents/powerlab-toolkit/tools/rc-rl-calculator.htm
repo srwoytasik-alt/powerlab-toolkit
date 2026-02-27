@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RC / RL Time Constant Calculator</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      background: #f8f9fa;
+      color: #1f2937;
+      line-height: 1.6;
+    }
+    h1 { text-align: center; color: #1e40af; margin-bottom: 0.6rem; }
+    .subtitle { text-align: center; color: #6b7280; margin-bottom: 2rem; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.4rem;
+    }
+    .form-group { margin: 0.8rem 0; }
+    label { display: block; margin-bottom: 0.4rem; font-weight: 600; color: #374151; }
+    input, select {
+      width: 100%;
+      padding: 0.7rem;
+      font-size: 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    input:focus, select:focus { border-color: #3b82f6; outline: none; }
+    button {
+      grid-column: 1 / -1;
+      padding: 1rem;
+      font-size: 1.1rem;
+      background: #1e40af;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #1e3a8a; }
+    #result {
+      margin-top: 2.5rem;
+      padding: 1.8rem;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1.2rem;
+      font-family: 'Courier New', monospace;
+    }
+    th, td {
+      padding: 0.7rem 1rem;
+      text-align: right;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    th { text-align: left; background: #f3f4f6; font-weight: 600; }
+    .tau { font-weight: bold; color: #1e40af; font-size: 1.2rem; }
+    .note { font-size: 0.9rem; color: #6b7280; margin-top: 2.5rem; text-align: center; }
+    .error { color: #dc2626; font-weight: 500; margin: 0.8rem 0; }
+  </style>
+</head>
+<body>
+
+  <h1>RC / RL Time Constant Calculator</h1>
+  <p class="subtitle">τ = R × C or τ = L / R — charging/discharging simulation</p>
+
+  <form id="form">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Circuit Type</label>
+        <select id="type" required>
+          <option value="RC">RC circuit (τ = R × C)</option>
+          <option value="RL">RL circuit (τ = L / R)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Resistance R (Ω)</label>
+        <input type="number" id="r" step="any" min="0" value="1000" required>
+      </div>
+
+      <div class="form-group" id="c-group">
+        <label>Capacitance C (F)</label>
+        <input type="number" id="c" step="any" min="0" value="0.000001" required placeholder="1 µF = 1e-6">
+      </div>
+
+      <div class="form-group" id="l-group" style="display:none;">
+        <label>Inductance L (H)</label>
+        <input type="number" id="l" step="any" min="0" value="0.1" required>
+      </div>
+
+      <div class="form-group">
+        <label>Supply / Initial Voltage V₀ (V)</label>
+        <input type="number" id="v0" step="any" value="5" required>
+      </div>
+
+      <div class="form-group">
+        <label>Mode</label>
+        <select id="mode" required>
+          <option value="charge">Charging (0 → V₀)</option>
+          <option value="discharge">Discharging (V₀ → 0)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Simulation times t (seconds, comma-separated)</label>
+      <input type="text" id="times" placeholder="leave blank for auto 0–10τ">
+    </div>
+
+    <button type="submit">Calculate & Simulate</button>
+  </form>
+
+  <div id="result"></div>
+
+  <div class="note">
+    Units: R in ohms (Ω), C in farads (F), L in henrys (H), t in seconds (s), V in volts (V)<br>
+    At 1τ ≈ 63.2% of final value, at 5τ ≈ 99.3% — practically complete.<br>
+    Leave times blank for automatic steps from 0 to 10τ.
+  </div>
+
+  <script>
+    const typeEl = document.getElementById('type');
+    const cGroup = document.getElementById('c-group');
+    const lGroup = document.getElementById('l-group');
+
+    typeEl.addEventListener('change', () => {
+      cGroup.style.display = typeEl.value === 'RC' ? 'block' : 'none';
+      lGroup.style.display = typeEl.value === 'RL' ? 'block' : 'none';
+    });
+
+    document.getElementById('form').addEventListener('submit', e => {
+      e.preventDefault();
+
+      // Read inputs
+      const type   = typeEl.value;
+      const r      = parseFloat(document.getElementById('r').value);
+      const cl     = parseFloat(document.getElementById(type === 'RC' ? 'c' : 'l').value);
+      const v0     = parseFloat(document.getElementById('v0').value);
+      const mode   = document.getElementById('mode').value;
+      let timesStr = document.getElementById('times').value.trim();
+
+      // Validation
+      if ([r, cl, v0].some(isNaN) || r <= 0 || cl <= 0 || v0 <= 0) {
+        document.getElementById('result').innerHTML = '<p class="error">Please enter positive numbers for R, C/L, and V₀.</p>';
+        return;
+      }
+
+      const tau = type === 'RC' ? r * cl : cl / r;
+
+      // Times: user input or auto-generate 0 to 10τ
+      let times = [];
+      if (timesStr) {
+        times = timesStr.split(',').map(t => parseFloat(t.trim())).filter(t => !isNaN(t));
+      }
+      if (times.length === 0) {
+        const steps = [0, 0.5, 1, 2, 3, 5, 10];
+        times = steps.map(m => m * tau);
+        // Optional: fill the input box so user sees generated values
+        document.getElementById('times').value = times.map(t => t.toExponential(3)).join(', ');
+      }
+
+      // Build output
+      let html = `<strong class="tau">Time constant τ = ${tau.toExponential(4)} s</strong><br>`;
+      html += `<strong>Mode:</strong> ${mode === 'charge' ? 'Charging' : 'Discharging'}<br>`;
+      html += `<strong>V₀ = ${v0.toFixed(2)} V</strong><br><br>`;
+
+      html += '<table>';
+      html += '<tr><th>t (s)</th><th>t (ms)</th><th>V(t) (V)</th><th>% of V₀</th><th>t / τ</th></tr>';
+
+      times.forEach(t => {
+        let v;
+        if (mode === 'charge') {
+          v = v0 * (1 - Math.exp(-t / tau));
+        } else {
+          v = v0 * Math.exp(-t / tau);
+        }
+        const percent = (v / v0 * 100).toFixed(1);
+        const tauMult = (t / tau).toFixed(3);
+        const ms = (t * 1000).toFixed(t < 0.001 ? 3 : 2);
+
+        html += `<tr>
+          <td>${t.toExponential(3)}</td>
+          <td>${ms} ms</td>
+          <td>${v.toFixed(4)}</td>
+          <td>${percent}%</td>
+          <td>${tauMult} τ</td>
+        </tr>`;
+      });
+
+      html += '</table>';
+
+      document.getElementById('result').innerHTML = html;
+    });
+  </script>
+</body>
+</html>
